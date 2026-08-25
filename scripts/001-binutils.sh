@@ -59,6 +59,11 @@ for TARGET in "mips64r5900el-ps2-elf"; do
   mkdir "build-$TARGET"
   cd "build-$TARGET"
 
+  HOST_OPTS=""
+if [ -n "$CONFIGURE_HOST" ]; then
+  HOST_OPTS="--host=$CONFIGURE_HOST"
+fi
+
   ## Configure the build.
   ../configure \
     --quiet \
@@ -69,6 +74,7 @@ for TARGET in "mips64r5900el-ps2-elf"; do
     --disable-sim \
     --disable-nls \
     --with-python=no \
+    $HOST_OPTS \
     $TARG_XTRA_OPTS
 
   ## Compile and install.
