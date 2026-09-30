@@ -11,6 +11,18 @@ trap onerr ERR
 ## Read information from the configuration file.
 source "$(dirname "$0")/../config/ps2toolchain-ee-config.sh"
 
+## ---- Android build: this script builds TARGET libraries only ---------------
+## It must run with the native (x86_64) cross tools built earlier (STEP A of
+## EE 001/002), never with the Android host toolchain that the workflow exports
+## (CC=aarch64-linux-android21-clang ...). Otherwise configure tries to run
+## Android binaries: "configure: error: cannot run C compiled programs".
+unset CC CXX AR LD RANLIB NM STRIP CONFIGURE_HOST CPPFLAGS CFLAGS CXXFLAGS LDFLAGS
+if [ -n "$NATIVE_PS2DEV" ]; then
+  export PATH="$NATIVE_PS2DEV/ee/bin:$NATIVE_PS2DEV/iop/bin:$PATH"
+fi
+echo "Target compiler in use: $(command -v mips64r5900el-ps2-elf-gcc)"
+mips64r5900el-ps2-elf-gcc --version | head -n 1
+
 ## Download the source code.
 REPO_URL="$PS2TOOLCHAIN_EE_NEWLIB_REPO_URL"
 REPO_REF="$PS2TOOLCHAIN_EE_NEWLIB_DEFAULT_REPO_REF"
