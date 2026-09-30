@@ -106,3 +106,20 @@ for TARGET in "mips64r5900el-ps2-elf"; do
 
   ## End target.
 done
+
+## ---- Android build: mirror target headers/libs into the native tree ---------
+## Newlib etc. are installed under $PS2DEV/ee (the Android package tree), but the
+## native x86_64 cross compiler that keeps building later stages only searches
+## $NATIVE_PS2DEV/ee/<target>/{include,lib}. Without this copy, later steps fail
+## with e.g. "fatal error: errno.h: No such file or directory".
+SYNC_TARGET="mips64r5900el-ps2-elf"
+if [ -n "$NATIVE_PS2DEV" ]; then
+  for d in include lib; do
+    if [ -d "$PS2DEV/ee/$SYNC_TARGET/$d" ]; then
+      mkdir -p "$NATIVE_PS2DEV/ee/$SYNC_TARGET/$d"
+      cp -a "$PS2DEV/ee/$SYNC_TARGET/$d/." "$NATIVE_PS2DEV/ee/$SYNC_TARGET/$d/"
+    fi
+  done
+  echo "Synced $SYNC_TARGET include/lib into $NATIVE_PS2DEV/ee"
+  ls "$NATIVE_PS2DEV/ee/$SYNC_TARGET/include/errno.h"
+fi
