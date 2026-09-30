@@ -32,6 +32,7 @@ fi
 
 cd "$REPO_FOLDER"
 
+TARGET="mips64r5900el-ps2-elf"
 TARGET_ALIAS="ee"
 TARG_XTRA_OPTS=""
 OSVER=$(uname)
@@ -41,8 +42,9 @@ OSVER=$(uname)
 if [ "$(uname -s)" = "Darwin" ]; then
   ## Check if using brew
   if command -v brew &> /dev/null; then
-    TARG_XTRA_OPTS="--with-system-zlib --with-gmp=$(brew --prefix gmp) --with-mpfr=$(brew --prefix mpfr) --with-mpfr=$(brew --prefix mpfr)"
+    TARG_XTRA_OPTS="--with-system-zlib --with-gmp=$(brew --prefix gmp) --with-mpfr=$(brew --prefix mpfr)"
   elif command -v port &> /dev/null; then
+  ## Check if using MacPorts
     MACPORT_BASE=$(dirname $(port -q contents gmp|grep gmp.h)|sed s#/include##g)
     printf 'Macport base is %s\n' "$MACPORT_BASE"
     TARG_XTRA_OPTS="--with-system-zlib --with-libiconv_prefix=$MACPORT_BASE --with-gmp=$MACPORT_BASE --with-mpfr=$MACPORT_BASE --with-mpc=$MACPORT_BASE"
@@ -52,38 +54,69 @@ fi
 ## Determine the maximum number of processes that Make can work with.
 PROC_NR=$(getconf _NPROCESSORS_ONLN)
 
-## For each target...
-for TARGET in "mips64r5900el-ps2-elf"; do
-  ## Create and enter the toolchain/build directory
-  rm -rf "build-$TARGET"
-  mkdir "build-$TARGET"
-  cd "build-$TARGET"
+## ------------------------------------------------------------------
+## STEP A: Build a NATIVE copy of binutils (runs on the CI machine).
+## This copy is only used internally so that GCC's own build/configure
+## step can actually EXECUTE "mipsel-none-elf-as" / "-ld" while testing
+## assembler features. It is installed OUTSIDE of $PS2DEV, so it is
+## never packaged into the final Android release.
+## ------------------------------------------------------------------
+if [ -n "$NATIVE_PS2DEV" ]; then
+  rm -rf "build-$TARGET-native"
+  mkdir "build-$TARGET-native"
+  cd "build-$TARGET-native"
 
-  HOST_OPTS=""
-if [ -n "$CONFIGURE_HOST" ]; then
-  HOST_OPTS="--host=$CONFIGURE_HOST"
-fi
-
-  ## Configure the build.
+  CC=gcc CXX=g++ AR=ar AS=as LD=ld RANLIB=ranlib STRIP=strip NM=nm \
   ../configure \
     --quiet \
-    --prefix="$PS2DEV/$TARGET_ALIAS" \
+    --prefix="$NATIVE_PS2DEV/$TARGET_ALIAS" \
     --target="$TARGET" \
-    --with-sysroot="$PS2DEV/$TARGET_ALIAS/$TARGET" \
+    --with-sysroot="$NATIVE_PS2DEV/$TARGET_ALIAS/$TARGET" \
     --disable-separate-code \
     --disable-sim \
     --disable-nls \
-    --with-python=no \
-    $HOST_OPTS \
-    $TARG_XTRA_OPTS
+    --disable-gdb \
+    --with-python=no
 
-  ## Compile and install.
   make --quiet -j "$PROC_NR"
   make --quiet -j "$PROC_NR" install-strip
   make --quiet -j "$PROC_NR" clean
 
-  ## Exit the build directory.
   cd ..
+fi
 
-  ## End target.
-done
+## ------------------------------------------------------------------
+## STEP B: Build the FINAL Android copy of binutils (what gets shipped).
+## ------------------------------------------------------------------
+
+## Create and enter the toolchain/build directory
+rm -rf "build-$TARGET"
+mkdir "build-$TARGET"
+cd "build-$TARGET"
+
+HOST_OPTS=""
+if [ -n "$CONFIGURE_HOST" ]; then
+  HOST_OPTS="--host=$CONFIGURE_HOST"
+fi
+
+## Configure the build.
+../configure \
+  --quiet \
+  --prefix="$PS2DEV/$TARGET_ALIAS" \
+  --target="$TARGET" \
+  --with-sysroot="$PS2DEV/$TARGET_ALIAS/$TARGET" \
+  --disable-separate-code \
+  --disable-sim \
+  --disable-nls \
+  --disable-gdb \
+  --with-python=no \
+  $HOST_OPTS \
+  $TARG_XTRA_OPTS
+
+## Compile and install.
+make --quiet -j "$PROC_NR"
+make --quiet -j "$PROC_NR" install-strip
+make --quiet -j "$PROC_NR" clean
+
+## Exit the build directory.
+cd ..
