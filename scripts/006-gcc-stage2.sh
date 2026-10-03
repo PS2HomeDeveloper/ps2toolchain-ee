@@ -198,6 +198,7 @@ ac_cv_func_strsignal=yes \
   --quiet \
   --prefix="$PS2DEV/$TARGET_ALIAS" \
   --target="$TARGET" \
+  --enable-host-pie \
   --enable-languages="c,c++" \
   --with-float=hard \
   --with-sysroot="$PS2DEV/$TARGET_ALIAS/$TARGET" \
@@ -220,6 +221,14 @@ ac_cv_func_strsignal=yes \
   CC_FOR_BUILD=/usr/bin/gcc \
   CXX_FOR_BUILD=/usr/bin/g++ \
   CFLAGS_FOR_BUILD="-g -O2 -include limits.h"
+
+## ---- Diagnostics: how will the compiler executables be linked? -----------------
+## Android only runs position-independent executables (ET_DYN). Print the relevant
+## Makefile lines so the log shows what the link rules contain.
+echo "=== PIE diagnostics (gcc/Makefile) ==="
+grep -n -E '^(LD_PICFLAG|PICFLAG|NO_PIE_FLAG|LDFLAGS|LINKER|ALL_LINKERFLAGS)[[:space:]]*=' gcc/Makefile | cut -c1-200 | head -20 || true
+grep -n -e '-no-pie' -e '-static-pie' gcc/Makefile | cut -c1-200 | head -10 || true
+echo "=== end PIE diagnostics ==="
 
 ## Compile.
 if ! make --quiet -j "$PROC_NR" all-gcc; then
