@@ -278,6 +278,12 @@ if [ -n "$NATIVE_PS2DEV" ]; then
   mkdir -p "$DST/lib/gcc/$TARGET/$GCCVER_DIR"
   cp -a "$NAT/lib/gcc/$TARGET/$GCCVER_DIR/." "$DST/lib/gcc/$TARGET/$GCCVER_DIR/"
 
+  ## The copy above also brought GCC's plugin folder from the NATIVE build. Its headers are
+  ## plain text and harmless, but libcc1plugin/libcp1plugin are x86_64 GLIBC programs built for
+  ## the CI machine: useless on Android and they need libc.so.6/libstdc++.so.6. Remove them.
+  find "$DST/lib/gcc/$TARGET/$GCCVER_DIR/plugin" \( -type f -o -type l \) \
+       \( -name '*.so' -o -name '*.so.*' -o -name '*.la' \) -print -delete 2>/dev/null || true
+
   mkdir -p "$DST/$TARGET/lib" "$DST/$TARGET/include"
   cp -a "$NAT/$TARGET/lib/." "$DST/$TARGET/lib/"
   cp -a "$NAT/$TARGET/include/." "$DST/$TARGET/include/"
